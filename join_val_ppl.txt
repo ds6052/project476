@@ -1,0 +1,17 @@
+
+beeline -u jdbc:hive2://localhost:10000
+
+use ds6052_nyu_edu;
+
+CREATE EXTERNAL TABLE ppl2021(iso3 STRING, country_area STRING, ppl DOUBLE) COMMENT 'ppl 2021 jan' ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE LOCATION 'hdfs://nyu-dataproc-m/user/ds6052_nyu_edu/ppl2021';
+
+LOAD DATA INPATH 'hdfs://nyu-dataproc-m/user/ds6052_nyu_edu/project476/ppl2021_Jan.csv' INTO TABLE ppl2021;
+
+CREATE EXTERNAL TABLE val(continent STRING, iso3 STRING, country_territories STRING, obs_num INT, distinct_val INT, casesSum DOUBLE, casesMean DOUBLE, casesMedian DOUBLE, casesMode DOUBLE, casesStd DOUBLE, deathsSum DOUBLE, deathsMean DOUBLE, deathsMedian DOUBLE, deathsMode DOUBLE, deathsStd DOUBLE) COMMENT 'val' ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE LOCATION 'hdfs://nyu-dataproc-m/user/ds6052_nyu_edu/val';
+
+LOAD DATA INPATH 'hdfs://nyu-dataproc-m/user/ds6052_nyu_edu/project476/ecdc_cases_val.csv' INTO TABLE val;
+
+INSERT OVERWRITE DIRECTORY 'hdfs://nyu-dataproc-m/user/ds6052_nyu_edu/join_val_ppl' ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' SELECT val.iso3, ppl2021.country_area, ppl2021.ppl, val.casesSum, (val.casesSum/ppl2021.ppl) AS case_to_ppl, val.deathsSum, (val.deathsSum/ppl2021.ppl) AS death_to_ppl FROM val INNER JOIN ppl2021 on ppl2021.iso3 = val.iso3 AND ppl2021.iso3 IS NOT NULL AND ppl2021.ppl IS NOT NULL ORDER BY case_to_ppl;
+
+hadoop fs -copyToLocal join_val_ppl/000000_0 /home/ds6052_nyu_edu
+
